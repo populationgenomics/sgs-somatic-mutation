@@ -1,9 +1,14 @@
+gcloud auth application-default login
+
+# 
+conda activate CPG1122
+
 # Test Data - Chr22
 input="gs://cpg-tob-wgs-test/mt/v7.mt"
 outputDir="deCODE_test"
 chr=22
 analysis-runner --dataset sgs-somatic-mtn --access-level test  --output-dir "$outputDir" --description "deCODE test" ./sub/sub_dataproc.py \
-    --script "scripts/deCODE_test_by_CHR.py --dataset '$input' --chrom chr${chr} --output deCODE_chr${chr}.vcf.bgz" \
+    --script "./scripts/deCODE_test_by_CHR.py --dataset '$input' --chrom chr${chr} --output deCODE_chr${chr}.vcf.bgz" \
     --jobname deCODE_test$chr
 
 # Not by chr
