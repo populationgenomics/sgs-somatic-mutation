@@ -28,7 +28,7 @@ def query(dataset, chrom, output, rerun):
     if rerun or not hl.hadoop_exists(p_out):
         # Section 1 - Read dataset
         mt = hl.read_matrix_table(dataset)
-        mt = mt.filter_rows((mt.locus.contig == chrom) 
+        mt = mt.filter_rows(mt.locus.contig == chrom) 
         mt = hl.experimental.densify(mt)
         mt = hl.variant_qc(mt)        
 
