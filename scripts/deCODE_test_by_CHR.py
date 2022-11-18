@@ -56,31 +56,24 @@ def query(dataset, chrom, output, rerun):
         # Restricted to bi-alleleic variants
         # Exclude variants with inbreeding Coefficient < -0.3
         filter_conditions = (# Excludes variants if allele type is missing
-                             hl.is_missing(mt4['allele_type'])) | \
-                       
+                             hl.is_missing(mt4['allele_type'])) | \ 
                             (# Excludes SNVs failed AS_VQSLOD filter
                              (hl.is_defined(mt4['allele_type'])) & (mt4['allele_type']=='snv') & \
                              (mt4['AS_VQSLOD'] < mt4['filtering_model'].snv_cutoff.min_score)) | \
-                   
                             (# Excludes Indels failed AS_VQSLOD filter
                              (hl.is_defined(mt4['allele_type'])) & (mt4['allele_type']=='ins') & \
                              (mt4['AS_VQSLOD'] < mt4['filtering_model'].indel_cutoff.min_score)) | \
-                   
                             (# Restrited to bi-allelic variants OR Exclude sites that are ref only or multi-allelic
                              (hl.len(mt4.alleles) < 2) | (hl.len(mt4.alleles) > 2)) | \
-                   
                             (# Restricted to bi-allelic variants
                              (hl.len(mt4.alleles)==2) & (mt4.n_unsplit_alleles != 2)) | \
-
                             (# Excludes variants with InbreedingCoeff < -0.3 (too much heterozygous)
                               # 1 - (ob_het)/(exp_het[2pq])
                               # IC = 0, HWE
                               # IC > 0, likely admix of different ethnic pop
                               # IC < 0, likely bad mapping
-                            
                              # InbreedingCoeff is missing
                               hl.is_missing(mt4['InbreedingCoeff'])) | \
-                            
                             (# InbreedingCoeff < -0.3
                              (hl.is_defined(mt4['InbreedingCoeff'])) & (mt4['InbreedingCoeff'] < -0.3))            
         mt5 = mt4.filter_rows(filter_conditions, keep=False)
