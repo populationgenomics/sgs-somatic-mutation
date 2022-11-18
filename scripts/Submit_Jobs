@@ -12,4 +12,9 @@ analysis-runner --dataset sgs-somatic-mtn --access-level test  --output-dir "$ou
     --jobname deCODE_test$chr
 
 # Not by chr
+input="gs://cpg-tob-wgs-test/mt/v7.mt"
+outputDir="deCODE_test"
+analysis-runner --dataset sgs-somatic-mtn --access-level test  --output-dir "$outputDir" --description "deCODE test" ./sub/sub_dataproc.py \
+    --script "./scripts/deCODE_test.py --dataset '$input' --output deCODE_test.vcf.bgz" \
+    --jobname deCODE_test
 
