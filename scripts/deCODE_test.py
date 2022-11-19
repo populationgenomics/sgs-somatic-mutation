@@ -104,7 +104,7 @@ def query(dataset, output, rerun):
         # simple repeat regions - combining the entire Simple Tandem Repeats by TRF track in UCSC hg38 with all homopolymer regions in hg38 of length 6bp or more
 
         # Read the (Combined) Simple Repeat Regions 
-        simple_repeat_regions = ('gs://cpg-sgs-somatic-mtn-test-upload/Simple_Repeat_Regions_GRCh38.bed')
+        simple_repeat_regions =('gs://cpg-sgs-somatic-mtn-test-upload/Simple_Repeat_Regions_GRCh38_Excluded_Unmapped_Regions.bed')
         interval_table = hl.import_bed(simple_repeat_regions, reference_genome='GRCh38')
          
         mt13 = hl.variant_qc(mt12.filter_rows(hl.is_defined(interval_table[mt12.locus]), keep=False))
