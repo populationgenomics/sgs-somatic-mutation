@@ -18,3 +18,14 @@ analysis-runner --dataset sgs-somatic-mtn --access-level test  --output-dir "$ou
     --script "./scripts/deCODE_test.py --dataset '$input' --output deCODE_test.vcf.bgz" \
     --jobname deCODE_test
 
+# For loop to submit jobs
+input="gs://cpg-tob-wgs-test/mt/v7.mt"
+outputDir="deCODE_test"
+for i in {{1..22},{'X','Y','M'}}
+do
+chr=${i}
+analysis-runner --dataset sgs-somatic-mtn --access-level test  --output-dir "$outputDir" --description "deCODE test" ./sub/sub_dataproc.py \
+    --script "./scripts/deCODE_test_by_CHR.py --dataset '$input' --chrom chr${chr} --output deCODE_chr${chr}_loop.vcf.bgz" \
+    --jobname deCODE_test${chr}_loop
+done
+
