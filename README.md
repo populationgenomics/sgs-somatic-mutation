@@ -78,7 +78,7 @@ cohort_size=11262
 for chr in {{1..22},{'X','Y','M'}}
 do
 analysis-runner --dataset sgs-somatic-mtn \
-    --access-level main \
+    --access-level standard \
     --output-dir "deCODE_pipeline" \
     --description "Submit deCODE pipeline through hail batch" \
     python3 deCODE_to_MT.py --input-mt mt/v7.mt --chrom chr${chr} --cohort-size ${cohort_size} --gnomad-file gs://cpg-reference/seqr/v0-1/combined_reference_data_grch38-2.0.4.ht --regions-file gs://cpg-sgs-somatic-mtn-test-upload/Simple_Repeat_Regions_GRCh38_Excluded_Unmapped_Regions.bed --output-mt deCODE_chr${chr}.mt 
