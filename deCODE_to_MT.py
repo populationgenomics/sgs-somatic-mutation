@@ -159,7 +159,7 @@ def main(
     mt = mt.select_rows(mt.rsid, mt.qual)
     mt = mt.select_entries(mt.GT, mt.DP, mt.AD, mt.GQ)
 
-    file_out = output_path(output_mt)
+    file_out = output_path(output_mt, 'analysis')
     mt.write(file_out, overwrite=True)
 
 
