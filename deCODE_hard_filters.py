@@ -156,7 +156,7 @@ def main(
     Step 6 - Export to Hail MT
     Select the following fields & export to a Hail MatrixTable
     """
-    mt = mt.select_rows(mt.vep, mt.vep_proc_id, mt.cadd, mt.gnomad_genomes, mt.gnomad_genome_coverage)
+    mt = mt.select_rows(mt.cadd, mt.gnomad_genomes, mt.gnomad_genome_coverage)
     mt = mt.select_entries(mt.GT, mt.DP, mt.AD, mt.GQ)
 
     file_out = output_path(output_mt, category="analysis")
