@@ -20,18 +20,21 @@ from gnomad.utils.annotations import bi_allelic_site_inbreeding_expr
 @click.option("--input-mt")
 @click.option("--chrom")
 @click.option("--regions-file", help="simple repeat regions needed to be excluded")
+@click.option("--vep-config", help="vep config file")
 @click.option("--gnomad-file", help="annotate variants with pop AF from gnomAD")
 @click.option("--output-mt")
 def main(
     input_mt: str,
     chrom: str,
     regions_file: str,
+    vep_config: str,
     gnomad_file: str,
     output_mt: str,
 ):
     init_batch()
 
-    dataset = dataset_path(input_mt, dataset="tob-wgs")
+    dataset = input_mt
+#    dataset = dataset_path(input_mt, dataset="tob-wgs")
 
     """
     Step 1 - Read & Densify mt dataset
@@ -134,10 +137,23 @@ def main(
 
     """
     Step 5 - Annotations
-    1. VEP (failed)
+    1. VEP
     2. gnomAD allele freq
     """
     
+    # vep annotation
+    ht = mt.rows()
+    ht = ht.filter(ht.alleles[1] != '*')
+    vep_ht = hl.vep(ht, config=vep_config)
+   
+    # Annotate variants with VEP annotations
+    mt = mt.annotate_rows(
+        vep = vep_ht[mt.row_key].vep,
+        vep_proc_id = vep_ht[mt.row_key].vep_proc_id,
+    )
+
+    del vep_ht
+
     # Read gnomAD allele frequency
     ref_ht = hl.read_table(gnomad_file)
 
