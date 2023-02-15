@@ -54,7 +54,7 @@ analysis-runner --dataset sgs-somatic-mtn \
     --access-level test \
     --output-dir "deCODE" \
     --description "Test deCODE pipeline" \
-    python3 deCODE_hard_filters.py --input-mt mt/v7.mt --chrom chr${chr} --regions-file gs://cpg-sgs-somatic-mtn-test-upload/Simple_Repeat_Regions_GRCh38_Excluded_Unmapped_Regions.bed --vep-config gs://cpg-common-main/references/vep/108.2/dataproc/config.json --gnomad-file gs://cpg-common-main/references/seqr/v0/combined_reference_data_grch38.ht --output-mt deCODE_test_chr${chr}.mt
+    python3 deCODE_hard_filters.py --input-mt mt/v7.mt --chrom chr${chr} --regions-file gs://cpg-sgs-somatic-mtn-test-upload/Simple_Repeat_Regions_GRCh38_Excluded_Unmapped_Regions.bed --gnomad-file gs://cpg-common-main/references/seqr/v0/combined_reference_data_grch38.ht --output-mt deCODE_test_chr${chr}.mt
 ```    
 
 Example 2:
