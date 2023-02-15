@@ -173,7 +173,7 @@ def main(
     mt = mt.select_rows(mt.vep, mt.vep_proc_id, mt.cadd, mt.gnomad_genomes, mt.gnomad_genome_coverage)
     mt = mt.select_entries(mt.GT, mt.DP, mt.AD, mt.GQ)
 
-    file_out = output_path(output_mt, "analysis")
+    file_out = output_path(output_mt, category="analysis", dataset="sgs-somatic-mtn")
     mt.write(file_out, overwrite=True)
 
 
