@@ -33,7 +33,7 @@ def main(
 ):
     init_batch()
 
-    dataset = dataset_path(input_mt, dataset="tob-wgs")
+    dataset = dataset_path(input_mt, category="test", dataset="tob-wgs")
 
     """
     Step 1 - Read & Densify mt dataset
