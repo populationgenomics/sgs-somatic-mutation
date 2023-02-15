@@ -12,7 +12,7 @@ package_name = "gnomad"
 subprocess.check_call(["pip", "install", package_name])
 
 from cpg_utils.config import get_config
-from cpg_utils.hail_batch import get_config, dataset_path, output_path, init_batch, remote_tmpdir
+from cpg_utils.hail_batch import dataset_path, output_path, init_batch, remote_tmpdir
 from gnomad.utils.annotations import bi_allelic_site_inbreeding_expr
 
 
