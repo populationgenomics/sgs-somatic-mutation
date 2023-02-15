@@ -6,6 +6,10 @@ This script is to find singleton mutations in TOB
 
 import click
 import hail as hl
+import subprocess
+
+package_name = "gnomad"
+subprocess.check_call(["pip", "install", package_name])
 
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import dataset_path, output_path, init_batch, remote_tmpdir
