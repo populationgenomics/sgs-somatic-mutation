@@ -27,7 +27,7 @@ def main(
     input_mt: str,
     chrom: str,
     regions_file: str,
-    vep_annotation: str, 
+    vep_annotation: str,
     gnomad_file: str,
     output_mt: str,
 ):
@@ -76,7 +76,7 @@ def main(
     3. Exclude variants with inbreeding coeff < -0.3
     4. Restricted to high quality variants (GQ>=20, DP>=10)
     """
-    
+
     # Restricted to bi-allelic variants
     filter_conditions = (
         (hl.is_missing(mt["allele_type"]))
@@ -84,15 +84,27 @@ def main(
         | ((hl.len(mt.alleles) == 2) & (mt.n_unsplit_alleles != 2))
     )
     mt = mt.filter_rows(filter_conditions, keep=False)
-  
+
     # Apply hard filters
     filter_conditions = (
-        ((mt["allele_type"] == "snv") 
-        & ((mt["info"].QD < 2.0) | (mt["info"].QUALapprox < 30.0) | (mt["info"].SOR > 3.0) | (mt["info"].FS > 60.0)
-          | (mt["info"].MQ < 40.0) | (mt["info"].MQRankSum < -12.5) | (mt["info"].ReadPosRankSum < -8.0)))
-        | (((mt["allele_type"] == "ins") | (mt["allele_type"] == "del")) 
-        & ((mt["info"].QD < 2.0) | (mt["info"].QUALapprox < 30.0) | (mt["info"].FS > 200.0) 
-          | (mt["info"].ReadPosRankSum < -20.0))) 
+        (mt["allele_type"] == "snv")
+        & (
+            (mt["info"].QD < 2.0)
+            | (mt["info"].QUALapprox < 30.0)
+            | (mt["info"].SOR > 3.0)
+            | (mt["info"].FS > 60.0)
+            | (mt["info"].MQ < 40.0)
+            | (mt["info"].MQRankSum < -12.5)
+            | (mt["info"].ReadPosRankSum < -8.0)
+        )
+    ) | (
+        ((mt["allele_type"] == "ins") | (mt["allele_type"] == "del"))
+        & (
+            (mt["info"].QD < 2.0)
+            | (mt["info"].QUALapprox < 30.0)
+            | (mt["info"].FS > 200.0)
+            | (mt["info"].ReadPosRankSum < -20.0)
+        )
     )
     mt = mt.filter_rows(filter_conditions, keep=False)
 
@@ -139,36 +151,39 @@ def main(
     1. VEP
     2. gnomAD allele freq
     """
-    
+
     # add vep annotations
     vep_file = dataset_path(vep_annotation, dataset="tob-wgs")
     vep_ht = hl.read_table(vep_file)
+
     # vep_ht
     mt = mt.annotate_rows(
-        vep = vep_ht[mt.row_key].vep,
-        vep_proc_id = vep_ht[mt.row_key].vep_proc_id,
+        vep=vep_ht[mt.row_key].vep,
+        vep_proc_id=vep_ht[mt.row_key].vep_proc_id,
     )
-    
+
     del vep_ht
-    
+
     # Read gnomAD allele frequency
     ref_ht = hl.read_table(gnomad_file)
 
     # Annotate variants with CADD scores, gnomAD etc.
     mt = mt.annotate_rows(
-        cadd = ref_ht[mt.row_key].cadd,
-        gnomad_genomes = ref_ht[mt.row_key].gnomad_genomes,
-        gnomad_genome_coverage = ref_ht[mt.row_key].gnomad_genome_coverage,
+        cadd=ref_ht[mt.row_key].cadd,
+        gnomad_genomes=ref_ht[mt.row_key].gnomad_genomes,
+        gnomad_genome_coverage=ref_ht[mt.row_key].gnomad_genome_coverage,
     )
 
     # Delete gnomAD file to save space
     del ref_ht
-    
+
     """
     Step 6 - Export to Hail MT
     Select the following fields & export to a Hail MatrixTable
     """
-    mt = mt.select_rows(mt.vep, mt.vep_proc_id, mt.cadd, mt.gnomad_genomes, mt.gnomad_genome_coverage)
+    mt = mt.select_rows(
+        mt.vep, mt.vep_proc_id, mt.cadd, mt.gnomad_genomes, mt.gnomad_genome_coverage
+    )
     mt = mt.select_entries(mt.GT, mt.DP, mt.AD, mt.GQ)
 
     file_out = output_path(output_mt, category="analysis")
@@ -176,4 +191,4 @@ def main(
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pylint: disable=no-value-for-parameter
