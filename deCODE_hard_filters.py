@@ -146,6 +146,8 @@ def main(
         mt.filter_rows(hl.is_defined(interval_table[mt.locus]), keep=False)
     )
 
+    del interval_table
+
     """
     Step 5 - Annotations
     1. VEP
