@@ -20,12 +20,14 @@ from gnomad.utils.annotations import bi_allelic_site_inbreeding_expr
 @click.option("--input-mt")
 @click.option("--chrom")
 @click.option("--regions-file", help="simple repeat regions needed to be excluded")
+@click.option("--vep-annotation", help="annotated tob-wgs dataset")
 @click.option("--gnomad-file", help="annotate variants with pop AF from gnomAD")
 @click.option("--output-mt")
 def main(
     input_mt: str,
     chrom: str,
     regions_file: str,
+    vep_annotation: str, 
     gnomad_file: str,
     output_mt: str,
 ):
@@ -134,9 +136,20 @@ def main(
 
     """
     Step 5 - Annotations
-    1. VEP (failed)
+    1. VEP
     2. gnomAD allele freq
     """
+    
+    # add vep annotations
+    vep_file = dataset_path(vep_annotation, dataset="tob-wgs")
+    vep_ht = hl.read_table(vep_file)
+    # vep_ht
+    mt = mt.annotate_rows(
+        vep = vep_ht[mt.row_key].vep,
+        vep_proc_id = vep_ht[mt.row_key].vep_proc_id,
+    )
+    
+    del vep_ht
     
     # Read gnomAD allele frequency
     ref_ht = hl.read_table(gnomad_file)
@@ -155,7 +168,7 @@ def main(
     Step 6 - Export to Hail MT
     Select the following fields & export to a Hail MatrixTable
     """
-    mt = mt.select_rows(mt.cadd, mt.gnomad_genomes, mt.gnomad_genome_coverage)
+    mt = mt.select_rows(mt.vep, mt.vep_proc_id, mt.cadd, mt.gnomad_genomes, mt.gnomad_genome_coverage)
     mt = mt.select_entries(mt.GT, mt.DP, mt.AD, mt.GQ)
 
     file_out = output_path(output_mt, category="analysis")
