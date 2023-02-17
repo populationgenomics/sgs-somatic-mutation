@@ -6,6 +6,10 @@ This script is to find singleton mutations in TOB
 
 import click
 import hail as hl
+import subprocess
+
+package_name = "gnomad"
+subprocess.check_call(["pip", "install", package_name])
 
 from cpg_utils.config import get_config
 from cpg_utils.hail_batch import dataset_path, output_path, init_batch, remote_tmpdir
@@ -15,16 +19,16 @@ from gnomad.utils.annotations import bi_allelic_site_inbreeding_expr
 @click.command()
 @click.option("--input-mt")
 @click.option("--chrom")
-@click.option("--cohort-size", help="sample size used to decide the AF threshold")
-@click.option("--gnomad-file", help="annotate variants with pop AF from gnomAD")
 @click.option("--regions-file", help="simple repeat regions needed to be excluded")
+@click.option("--vep-annotation", help="annotated tob-wgs dataset")
+@click.option("--gnomad-file", help="annotate variants with pop AF from gnomAD")
 @click.option("--output-mt")
 def main(
     input_mt: str,
     chrom: str,
-    cohort_size: int,
-    gnomad_file: str,
     regions_file: str,
+    vep_annotation: str,
+    gnomad_file: str,
     output_mt: str,
 ):
     init_batch()
@@ -67,33 +71,44 @@ def main(
 
     """
     Step 3 - Variant-level QC
-    1. Apply AS_VQSR cutoffs (different threshold for indels/snvs)
-    2. Restricted to bi-allelic variants
+    1. Restricted to bi-allelic variants
+    2. Apply hard filters
     3. Exclude variants with inbreeding coeff < -0.3
     4. Restricted to high quality variants (GQ>=20, DP>=10)
     """
 
-    # Apply AS_VQSR filters
     # Restricted to bi-allelic variants
     filter_conditions = (
         (hl.is_missing(mt["allele_type"]))
-        | (
-            (hl.is_defined(mt["allele_type"]))
-            & (mt["allele_type"] == "snv")
-            & (mt["AS_VQSLOD"] < mt["filtering_model"].snv_cutoff.min_score)
-        )
-        | (
-            (hl.is_defined(mt["allele_type"]))
-            & (mt["allele_type"] == "ins")
-            & (mt["AS_VQSLOD"] < mt["filtering_model"].indel_cutoff.min_score)
-        )
         | (hl.len(mt.alleles) != 2)
         | ((hl.len(mt.alleles) == 2) & (mt.n_unsplit_alleles != 2))
     )
     mt = mt.filter_rows(filter_conditions, keep=False)
 
-    # Exclude variants with inbreeding coefficient < -0.3
+    # Apply hard filters
+    filter_conditions = (
+        (mt["allele_type"] == "snv")
+        & (
+            (mt["info"].QD < 2.0)
+            | (mt["info"].QUALapprox < 30.0)
+            | (mt["info"].SOR > 3.0)
+            | (mt["info"].FS > 60.0)
+            | (mt["info"].MQ < 40.0)
+            | (mt["info"].MQRankSum < -12.5)
+            | (mt["info"].ReadPosRankSum < -8.0)
+        )
+    ) | (
+        ((mt["allele_type"] == "ins") | (mt["allele_type"] == "del"))
+        & (
+            (mt["info"].QD < 2.0)
+            | (mt["info"].QUALapprox < 30.0)
+            | (mt["info"].FS > 200.0)
+            | (mt["info"].ReadPosRankSum < -20.0)
+        )
+    )
+    mt = mt.filter_rows(filter_conditions, keep=False)
 
+    # Exclude variants with inbreeding coefficient < -0.3
     # InbreedingCoeff was calculated by function 'bi_allelic_site_inbreeding_expr'
     mt = mt.annotate_rows(InbreedingCoeff=bi_allelic_site_inbreeding_expr(mt.GT))
 
@@ -106,13 +121,9 @@ def main(
 
     """
     Step 4 - deCODE specific filter
-    1. Exclude variants with call rate < 0.99
-    2. Identify singleton mutations
-    3. Apply deCODE specific filter (DP >= 16, GQ >= 90, >=3 indepedent reads for alt allele, not in simple repeat regions, very low AF at population level[use deCODE sample size as a ref])
+    1. Identify singleton mutations, https://hail.is/docs/0.2/methods/genetics.html (n_non_ref)
+    2. Apply deCODE specific filter (DP >= 16, GQ >= 90, >=3 indepedent reads for alt allele, not in simple repeat regions)
     """
-
-    # Exclude variants with call rate < 0.99 (not in deCODE paper)
-    mt = mt.filter_rows(mt.variant_qc.call_rate >= 0.99)
 
     # Identify singleton mutations
     mt = mt.filter_rows(mt.variant_qc.n_non_ref == 1)
@@ -123,6 +134,37 @@ def main(
     filter_condition = (mt.DP >= 16) & (mt.GQ >= 90) & (mt.AD[1] >= 3)
     mt = hl.variant_qc(mt.filter_entries(filter_condition, keep=True))
     mt = mt.filter_rows(mt.variant_qc.n_non_ref == 1)
+
+    # Exclude mutations in simple repeat regions
+    # simple repeat regions - combining the entire Simple Tandem Repeats by TRF track in UCSC hg38 with all homopolymer regions in hg38 of length 6bp or more
+
+    # Read the (Combined) Simple Repeat Regions
+    interval_table = hl.import_bed(regions_file, reference_genome="GRCh38")
+
+    # Exclude mutations in these regions
+    mt = hl.variant_qc(
+        mt.filter_rows(hl.is_defined(interval_table[mt.locus]), keep=False)
+    )
+
+    del interval_table
+
+    """
+    Step 5 - Annotations
+    1. VEP
+    2. gnomAD allele freq
+    """
+
+    # add vep annotations
+    vep_file = dataset_path(vep_annotation, dataset="tob-wgs")
+    vep_ht = hl.read_table(vep_file)
+
+    # vep_ht
+    mt = mt.annotate_rows(
+        vep=vep_ht[mt.row_key].vep,
+        vep_proc_id=vep_ht[mt.row_key].vep_proc_id,
+    )
+
+    del vep_ht
 
     # Read gnomAD allele frequency
     ref_ht = hl.read_table(gnomad_file)
@@ -137,31 +179,18 @@ def main(
     # Delete gnomAD file to save space
     del ref_ht
 
-    # Apply gnomAD AF filter (very low MAF)
-    AF_cutoff = 1 / (int(cohort_size) * 2)
-    mt = mt.filter_rows(mt.gnomad_genomes.AF_POPMAX_OR_GLOBAL <= AF_cutoff)
-
-    # Exclude mutations in simple repeat regions
-    # simple repeat regions - combining the entire Simple Tandem Repeats by TRF track in UCSC hg38 with all homopolymer regions in hg38 of length 6bp or more
-
-    # Read the (Combined) Simple Repeat Regions
-    interval_table = hl.import_bed(regions_file, reference_genome="GRCh38")
-
-    # Exclude mutations in these regions
-    mt = hl.variant_qc(
-        mt.filter_rows(hl.is_defined(interval_table[mt.locus]), keep=False)
-    )
-
     """
-    Step 5 - Export to Hail MT
+    Step 6 - Export to Hail MT
     Select the following fields & export to a Hail MatrixTable
     """
-    mt = mt.select_rows(mt.rsid, mt.qual)
+    mt = mt.select_rows(
+        mt.vep, mt.vep_proc_id, mt.cadd, mt.gnomad_genomes, mt.gnomad_genome_coverage
+    )
     mt = mt.select_entries(mt.GT, mt.DP, mt.AD, mt.GQ)
 
-    file_out = output_path(output_mt, "analysis")
+    file_out = output_path(output_mt, category="analysis")
     mt.write(file_out, overwrite=True)
 
 
 if __name__ == "__main__":
-    main()
+    main()  # pylint: disable=no-value-for-parameter

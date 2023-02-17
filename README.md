@@ -26,16 +26,18 @@ First perform QC on TOB's Hail MatrixTable data (following [gnomAD's blog](https
     * Skip sample QC metric outlier filtering
     * Skip ancestry checks (all Europeans)
 * Step 3 - Variant-level QC
-    * Variant filtering with allele-specific version of GATK Variant Quality Score Recalibration (AS-VQSR, cutoff values can be found in the global fields in TOB-WGS mt data; thresholds differ between SNVs and INDELs)
     * Restrict to bi-allelic variants 
+    * Variant filtering with GATK recommended hard filters (thresholds differ between SNVs and INDELs)
     * Exclude variants with inbreeding coefficient < -0.3 or low quality (GQ < 20, DP < 10)
         * Inbreeding coefficient is calculated using `bi_allelic_site_inbreeding_expr()` imported from `gnomad.utils.annotations`, adapted from [`cpg_workflows`](https://github.com/populationgenomics/production-pipelines/blob/main/cpg_workflows/large_cohort/frequencies.py)
 * Step 4 - deCODE specific filters
-    * Exclude variants with call rate < 0.99
     * Identify singleton mutations (mutations that occurred only once in our cohort)
     * Exclude variants with DP < 16 or GQ < 90
     * Exclude variants in simple repeat regions (i.e., defined by combining the entire Simple Tandem Repeats by TRF track in UCSC hg38 with all homopolymer regions in hg38 of length 6bp or more)
-* Step 5 - Export to a pVCF file
+* Step 5 - Annotations
+    * VEP annotations
+    * gnomAD allele freq
+* Step 6 - Export to a new Hail MatrixTable 
 <br><br>
 
 ### How to run this script?
@@ -45,42 +47,52 @@ First perform QC on TOB's Hail MatrixTable data (following [gnomAD's blog](https
 gcloud auth application-default login
 
 # activate the environment for running analysis-runner
-conda activate CPG
+conda activate CPG (python 3.11)
+conda activate analysis-runner (python 3.10)
 ```
 
 Example 1:
 ```
 chr="M"
-cohort_size=11262
 analysis-runner --dataset sgs-somatic-mtn \
     --access-level test \
     --output-dir "deCODE" \
     --description "Test deCODE pipeline" \
-    python3 deCODE_to_MT.py --input-mt mt/v7.mt --chrom chr${chr} --cohort-size ${cohort_size} --gnomad-file gs://cpg-common-main/references/seqr/v0-1/combined_reference_data_grch38-2.0.4.ht --regions-file gs://cpg-sgs-somatic-mtn-test-upload/Simple_Repeat_Regions_GRCh38_Excluded_Unmapped_Regions.bed --output-mt deCODE_test_chr${chr}.mt
+    python3 deCODE_hard_filters.py --input-mt mt/v7.mt --chrom chr${chr} \
+            --regions-file gs://cpg-sgs-somatic-mtn-test-upload/Simple_Repeat_Regions_GRCh38_Excluded_Unmapped_Regions.bed \
+            --vep-annotation tob_wgs_vep/v7_vep_108.2/vep108.2_GRCh38.ht \
+            --gnomad-file gs://cpg-common-main/references/seqr/v0/combined_reference_data_grch38.ht \
+            --output-mt deCODE_test_chr${chr}.mt
 ```    
 
 Example 2:
 ```
-cohort_size=11262
 for chr in {{1..22},{'X','Y','M'}}
 do
 analysis-runner --dataset sgs-somatic-mtn \
     --access-level test \
     --output-dir "deCODE_pipeline" \
     --description "Test deCODE pipeline" \
-    python3 deCODE_to_MT.py --input-mt mt/v7.mt --chrom chr${chr} --cohort-size ${cohort_size} --gnomad-file gs://cpg-common-main/references/seqr/v0-1/combined_reference_data_grch38-2.0.4.ht --regions-file gs://cpg-sgs-somatic-mtn-test-upload/Simple_Repeat_Regions_GRCh38_Excluded_Unmapped_Regions.bed --output-mt deCODE_test_chr${chr}.mt
+    python3 deCODE_hard_filters.py --input-mt mt/v7.mt --chrom chr${chr} \
+            --regions-file gs://cpg-sgs-somatic-mtn-test-upload/Simple_Repeat_Regions_GRCh38_Excluded_Unmapped_Regions.bed \
+            --vep-annotation tob_wgs_vep/v7_vep_108.2/vep108.2_GRCh38.ht \
+            --gnomad-file gs://cpg-common-main/references/seqr/v0/combined_reference_data_grch38.ht \
+            --output-mt deCODE_test_chr${chr}.mt
 done
 ```
 
 Example 3:
 ```
-cohort_size=11262
 for chr in {{1..22},{'X','Y','M'}}
 do
 analysis-runner --dataset sgs-somatic-mtn \
     --access-level standard \
     --output-dir "deCODE_pipeline" \
     --description "Submit deCODE pipeline through hail batch" \
-    python3 deCODE_to_MT.py --input-mt mt/v7.mt --chrom chr${chr} --cohort-size ${cohort_size} --gnomad-file gs://cpg-common-main/references/seqr/v0-1/combined_reference_data_grch38-2.0.4.ht --regions-file gs://cpg-sgs-somatic-mtn-test-upload/Simple_Repeat_Regions_GRCh38_Excluded_Unmapped_Regions.bed --output-mt deCODE_chr${chr}.mt 
+    python3 deCODE_hard_filters.py --input-mt mt/v7.mt --chrom chr${chr} \
+            --regions-file gs://cpg-sgs-somatic-mtn-test-upload/Simple_Repeat_Regions_GRCh38_Excluded_Unmapped_Regions.bed \
+            --vep-annotation tob_wgs_vep/v7_vep_108.2/vep108.2_GRCh38.ht \
+            --gnomad-file gs://cpg-common-main/references/seqr/v0/combined_reference_data_grch38.ht \
+            --output-mt deCODE_chr${chr}.mt
 done
 ```
